@@ -65,7 +65,7 @@ def init_cam():
     print(cam.temp_setpoint)
 
     pvc.set_param(cam.handle, const.PARAM_READOUT_PORT, 0)
-    pvc.set_param(cam.handle, const.PARAM_GAIN_MULT_FACTOR, 400)
+    pvc.set_param(cam.handle, const.PARAM_GAIN_MULT_FACTOR, 40)
     v = pvc.get_param(cam.handle, const.PARAM_GAIN_MULT_FACTOR, const.ATTR_CURRENT)
     print(cam.temp)
 
@@ -101,7 +101,8 @@ def main(arg):
 
     init_ui()
 
-    base_filename = arg[2] + '_' + str(int(time.time())) + '_'
+    if (saving):
+        base_filename = arg[2] + '_' + str(int(time.time())) + '_'
     
     while True:
         frame = cam.get_live_frame().reshape(cam.sensor_size[::-1]) 
@@ -116,7 +117,7 @@ def main(arg):
             save_data(frame, base_filename, seq, cnt)
                 
         if cnt == FRAME_PER_FILE:
-            print("file #" + str(seq) + "total frame = " + str(tot))
+            print("file # " + str(seq) + " total frame = " + str(tot))
             sum = np.zeros((512,512))
             seq = seq + 1
             cnt = 0
