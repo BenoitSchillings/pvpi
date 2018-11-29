@@ -34,7 +34,6 @@ def init_ui():
 def scale2(image):
         return(cv2.resize(image, (0,0), fx=2, fy=2, interpolation=cv2.INTER_LINEAR))
 
-
 def shift(array, dx, dy):
         result = cp.roll(cp.roll(array, int(dx), 0), int(dy), 1)
 
