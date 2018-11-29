@@ -2,6 +2,7 @@ from pyvcam import pvc
 from pyvcam.camera import Camera
 from pyvcam import constants as const
 
+#---------------------------------------------------------------------
 
 import sys
 import time
@@ -11,11 +12,26 @@ import scipy
 import astropy
 from astropy.io import fits
 
+#---------------------------------------------------------------------
+
+FRAME_PER_FILE = 100
+
+#---------------------------------------------------------------------
+
 sliders = [300, 1000, 300, 1000]
 
+#---------------------------------------------------------------------
 
 def set(idx, pos):
     sliders[idx] = pos
+
+#---------------------------------------------------------------------
+
+def save_fits(nparray):
+    hdr = fits.header.Header()
+    fits.writeto('fn.fits', np.float32(nparray), hdr, overwrite=True)
+
+#---------------------------------------------------------------------
 
 def init_ui():
     cv2.namedWindow('live')
@@ -30,8 +46,12 @@ def init_ui():
     cv2.setTrackbarPos("Min", "sum", sliders[2]) 
     cv2.setTrackbarPos("Range", "sum", sliders[3]) 
 
+#---------------------------------------------------------------------
+
 def scale2(image):
-    return(cv2.resize(image, (0,0), fx=1.5, fy=1.5))
+    return(cv2.resize(image, (0,0), fx=1.0, fy=1.0))
+
+#---------------------------------------------------------------------
 
 def init_cam():
     pvc.init_pvcam()
@@ -49,47 +69,58 @@ def init_cam():
     v = pvc.get_param(cam.handle, const.PARAM_GAIN_MULT_FACTOR, const.ATTR_CURRENT)
     print(cam.temp)
 
+#---------------------------------------------------------------------
+
+def save_data(data, filename, index, frame):
+    global output_file
+    print(filename, frame)
+    if (frame == 1):
+        output_file = open(filename + str(index), 'ab')
+    
+    np.save(output_file, data)
+    if (frame == FRAME_PER_FILE):
+        output_file.close()
+        
+#---------------------------------------------------------------------
+ 
+    
+def close_files():
+    if (output_file != None):
+        output_file.close()
+        
+#---------------------------------------------------------------------
 
 
 def main(arg):
     init_cam()
     exp_time_p = float(arg[1])
     cam.start_live(exp_time=int(exp_time_p*1000.0))
-    print(exp_time_p)
     cnt = 1
     tot = 0
-    fps = 0
-    cntf = 0
     saving = len(arg) > 2
     sum = np.zeros((512,512))
-    k = 0
+    seq = 0
 
     init_ui()
 
-    if (saving):
-        output = open(arg[2], 'ab')
+
     while True:
         frame = cam.get_live_frame().reshape(cam.sensor_size[::-1]) 
         f1 = frame.astype(float)
 
         sum = sum + f1
-        f1 = f1 - sliders[0]
+        
         cv2.imshow('live', scale2((1.0/sliders[1]) *  (f1 - sliders[0])))
-        s = sum/(cnt)
-        cv2.imshow('sum', scale2((1.0/sliders[3]) * (s - sliders[2])))
-        cntf = cntf + 1
-
-        if (cnt % 300 == 0):
-                print(cnt)
-        if (saving and cnt < 9):
-                np.save(output, frame)
-        if cnt == 1000:
-                hdr = fits.header.Header()
-                #fits.writeto('single_0.001sec_gain500max_12000' + str(k) + '.fits', np.float32(sum/(cnt*1.0)), hdr, overwrite=True)
-                print(cntf)
-                sum = np.zeros((512,512))
-                k = k + 1
-                cnt = 0
+        cv2.imshow('sum', scale2((1.0/sliders[3]) * (sum/cnt - sliders[2])))
+        
+        if (saving):
+            save_data(frame, arg[2], seq, cnt)
+                
+        if cnt == FRAME_PER_FILE:
+            print("file #" + str(seq) + "total frame = " + str(tot))
+            sum = np.zeros((512,512))
+            seq = seq + 1
+            cnt = 0
 
         if cv2.waitKey(10) == 27:
             break
@@ -99,8 +130,9 @@ def main(arg):
 
     cam.close()
     pvc.uninit_pvcam()
-    if (saving):
-        output.close()
+    close_files()
+    
+#---------------------------------------------------------------------
 
 if __name__ == "__main__":
     main(sys.argv)
