@@ -73,7 +73,6 @@ def init_cam():
 
 def save_data(data, filename, index, frame):
     global output_file
-    print(filename, frame)
     if (frame == 1):
         output_file = open(filename + str(index), 'ab')
     
@@ -83,7 +82,6 @@ def save_data(data, filename, index, frame):
         
 #---------------------------------------------------------------------
  
-    
 def close_files():
     if (output_file != None):
         output_file.close()
@@ -103,7 +101,8 @@ def main(arg):
 
     init_ui()
 
-
+    base_filename = arg[2] + '_' + str(int(time.time())) + '_'
+    
     while True:
         frame = cam.get_live_frame().reshape(cam.sensor_size[::-1]) 
         f1 = frame.astype(float)
@@ -114,7 +113,7 @@ def main(arg):
         cv2.imshow('sum', scale2((1.0/sliders[3]) * (sum/cnt - sliders[2])))
         
         if (saving):
-            save_data(frame, arg[2], seq, cnt)
+            save_data(frame, base_filename, seq, cnt)
                 
         if cnt == FRAME_PER_FILE:
             print("file #" + str(seq) + "total frame = " + str(tot))
