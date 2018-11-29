@@ -7,6 +7,7 @@ from scipy import signal
 import astropy
 from astropy.io import fits
 import scipy.ndimage as snd
+import cupy as cp
 
 sliders = [300, 1000, 300, 1000]
 
@@ -31,17 +32,15 @@ def scale2(image):
         return(cv2.resize(image, (0,0), fx=2, fy=2, interpolation=cv2.INTER_LINEAR))
 
 
-#def shift(array, dx, dy):
-#        result = np.roll(array, (dx, dy), axis=(0,1))
-#        return result
+def shift(array, dx, dy):
+        result = cp.roll(cp.roll(array, dx, 0), dy, 1)
+        return result
 
 def error(array):
-        error = np.average(array**2)
+        error = cp.mean(array**2)
         return error
 
-def xy_trans(array, dx, dy):
-        result = snd.shift(array, [dx, dy], mode='wrap', order=1)
-        return result
+
 
 def main(arg):
         cnt = 1
@@ -66,9 +65,11 @@ def main(arg):
             f1 = f1 - sliders[0]
 
             best_error = 1e20
-            for dx in range(-150, 150, 2):
-                for dy in range(-150, 150, 2):
-                    temp = xy_trans(frame, dx/20.0, dy/20.0)
+            print(' ')
+            for dx in range(-15, 15, 1):
+                print('.', end = "", flush = True)
+                for dy in range(-15, 15, 1):
+                    temp = shift(frame, dx, dy)
                     #sumt = model - shift(frame, dx, dy)
                     sumt = model - temp
                     new_error = error(sumt)
@@ -78,8 +79,8 @@ def main(arg):
                          best_error = new_error
 
 
-            sum = sum + xy_trans(f1, best_dx/20.0, best_dy/20.0)
-            print(best_dx/20.0, best_dy/20.0)
+            sum = sum + shift(f1, best_dx, best_dy)
+            print(best_dx, best_dy)
 
         s = sum / 10.0
         
