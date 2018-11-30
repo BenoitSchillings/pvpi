@@ -7,7 +7,6 @@ from scipy import signal
 import astropy
 from astropy.io import fits
 import scipy.ndimage as snd
-import cupy as cp
 
 sliders = [300, 1000, 300, 1000]
 
@@ -33,11 +32,11 @@ def scale2(image):
 
 
 def shift(array, dx, dy):
-        result = cp.roll(cp.roll(array, dx, 0), dy, 1)
+        result = np.roll(np.roll(array, dx, 0), dy, 1)
         return result
 
 def error(array):
-        error = cp.mean(array**2)
+        error = np.mean(array**2)
         return error
 
 
@@ -47,7 +46,7 @@ def main(arg):
         tot = 0
         fps = 0
         sum = np.zeros((512,512))
-        #sum = scale2(sum)
+        sum = scale2(sum)
         k = 0
 
         #init_ui()
@@ -55,20 +54,20 @@ def main(arg):
         input_file = open(arg[1], "rb")
 
         model = np.load(input_file).astype(np.float32)
-        #model = scale2(model)
+        model = scale2(model)
         
         for frame_num in range(10):
             frame = np.load(input_file)
-            #frame = scale2(frame) 
+            frame = scale2(frame) 
             f1 = frame.astype(np.float32)
 
             f1 = f1 - sliders[0]
 
             best_error = 1e20
             print(' ')
-            for dx in range(-15, 15, 1):
+            for dx in range(-25, 25, 1):
                 print('.', end = "", flush = True)
-                for dy in range(-15, 15, 1):
+                for dy in range(-25, 25, 1):
                     temp = shift(frame, dx, dy)
                     #sumt = model - shift(frame, dx, dy)
                     sumt = model - temp

@@ -12,6 +12,9 @@ import scipy
 import astropy
 from astropy.io import fits
 
+
+import skyx
+
 #---------------------------------------------------------------------
 
 FRAME_PER_FILE = 100
@@ -111,7 +114,8 @@ class saver:
 
 
 def main(arg):
-
+    sky = skyx.SkyXConnection()
+    sky.find("ngc7332")
     camp = emccd()
     
     exp_time_p = float(arg[1])
