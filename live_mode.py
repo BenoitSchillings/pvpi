@@ -18,7 +18,7 @@ import skyx
 
 #---------------------------------------------------------------------
 
-FRAME_PER_FILE = 100
+FRAME_PER_FILE = 1000
 
 #---------------------------------------------------------------------
 
@@ -70,6 +70,7 @@ class emccd:
         print(self.vcam.temp_setpoint)
 
         pvc.set_param(self.vcam.handle, const.PARAM_READOUT_PORT, 0)
+        print("gain = ", gain)
         pvc.set_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, gain)
         v = pvc.get_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, const.ATTR_CURRENT)
         print(self.vcam.temp)
@@ -155,26 +156,26 @@ class guider:
 
 def main(args):
 
-    cam = emccd(args.gain)
-    guide = guider(args.guide)
+    cam_p = emccd(args.gain)
+    guide_p = guider(args.guide)
 
     exp_time_p = args.exp
     print(exp_time_p, args.filename)
     
-    camp.start(exp_time_p)
+    cam_p.start(exp_time_p)
     cnt = 1
     tot = 0
-    saving = len(arg) > 2
+    saving = True
     sum = np.zeros((512,512))
 
     init_ui()
 
     if (saving):
         base_filename = args.filename + '_' + str(int(time.time())) + '_'
-        savep = saver(base_filename)
+        save_p = saver(base_filename)
         
     while True:
-        frame = camp.get_frame()
+        frame = cam_p.get_frame()
         f1 = frame.astype(float)
 
         sum = sum + f1
@@ -183,12 +184,12 @@ def main(args):
         cv2.imshow('sum', scale2((1.0/sliders[3]) * (sum/cnt - sliders[2])))
         
         if (saving):
-            savep.save_data(frame)
+            save_p.save_data(frame)
         
-        guide.guide(frame)
+        guide_p.guide(frame)
                
         if cnt == FRAME_PER_FILE:
-            print("file # " + str(seq) + " total frame = " + str(tot))
+            print("file # " + " total frame = " + str(tot))
             sum = np.zeros((512,512))
             cnt = 0
 
@@ -198,8 +199,8 @@ def main(args):
         cnt += 1
         tot += 1
 
-    camp.close()
-    savep.close()
+    cam_p.close()
+    save_p.close()
     
 #---------------------------------------------------------------------
 
