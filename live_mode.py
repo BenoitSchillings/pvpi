@@ -59,7 +59,7 @@ def init_ui():
 #---------------------------------------------------------------------
 
 class emccd:
-    def __init__(self):
+    def __init__(self, gain):
         pvc.init_pvcam()
 
         self.vcam = next(Camera.detect_camera())
@@ -70,7 +70,7 @@ class emccd:
         print(self.vcam.temp_setpoint)
 
         pvc.set_param(self.vcam.handle, const.PARAM_READOUT_PORT, 0)
-        pvc.set_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, 400)
+        pvc.set_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, gain)
         v = pvc.get_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, const.ATTR_CURRENT)
         print(self.vcam.temp)
         
@@ -114,17 +114,22 @@ class saver:
 #---------------------------------------------------------------------
 
 class guider:
-    def __init__(self):
-        self.sky = skyx.sky6RASCOMTele()
-        self.sky.Connect()
-        print(self.sky.GetRaDec())
-        self.inited = False
-        self.tracks_x = numpy.zeros((10))
-        self.tracks_y = numpy.zeros((10))
-        self.idx = 0
+    def __init__(self, frame_per_guide):
+        self.frame_per_guide = frame_per_guide
+        if (frame_per_guide != 0):
+            self.sky = skyx.sky6RASCOMTele()
+            self.sky.Connect()
+            print(self.sky.GetRaDec())
+            self.inited = False
+            self.tracks_x = numpy.zeros((self.frame_per_guide))
+            self.tracks_y = numpy.zeros((self.frame_per_guide))
+            self.idx = 0
         
         
     def guide(self, image):
+        if (self.frame_per_guide == 0):
+            return
+        
         self.curpos = cv2.minMaxLoc()[3]
         
         if (not self.inited):
@@ -137,7 +142,7 @@ class guider:
             self.tracks_y[self.idx] = delta[1]
             
             self.idx = self.idx + 1
-            if (self.idx == 10):
+            if (self.idx == self.frame_per_guide):
                 mx = np.median(self.track_x)
                 my = np.median(self.track_y)
                     
@@ -150,8 +155,8 @@ class guider:
 
 def main(args):
 
-    camp = emccd()
-    guide = guider()
+    cam = emccd(args.gain)
+    guide = guider(args.guide)
 
     exp_time_p = args.exp
     print(exp_time_p, args.filename)
@@ -201,7 +206,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--filename", type=str, default = 'tmp', help="generic file name")
-    parser.add_argument("-exp", type=float, default = 0.033, help="exposure in seconds")
+    parser.add_argument("-exp", type=float, default = 0.033, help="exposure in seconds (default 0.033)")
+    parser.add_argument("-gain", "--gain", type=int, default = 300, help="emccd gain (default 300)")
+    parser.add_argument("-guide", "--guide", type=int, default = 0, help="frame per guide cycle (0 to disable)")
     args = parser.parse_args()
     print(args)
     main(args)
