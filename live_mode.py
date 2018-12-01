@@ -11,6 +11,7 @@ import numpy as np
 import scipy
 import astropy
 from astropy.io import fits
+import argparse
 
 
 import skyx
@@ -112,13 +113,49 @@ class saver:
         
 #---------------------------------------------------------------------
 
+class guider:
+    def __init__(self):
+        self.sky = skyx.sky6RASCOMTele()
+        self.sky.Connect()
+        print(self.sky.GetRaDec())
+        self.inited = False
+        self.tracks_x = numpy.zeros((10))
+        self.tracks_y = numpy.zeros((10))
+        self.idx = 0
+        
+        
+    def guide(self, image):
+        self.curpos = cv2.minMaxLoc()[3]
+        
+        if (not self.inited):
+            self.inited = True
+            self.initpos = self.curpos
+        else:
+            delta = self.initpos - self.curpos
+            print(delta)
+            self.tracks_x[self.idx] = delta[0]
+            self.tracks_y[self.idx] = delta[1]
+            
+            self.idx = self.idx + 1
+            if (self.idx == 10):
+                mx = np.median(self.track_x)
+                my = np.median(self.track_y)
+                    
+                print("error is " + str(mx) + " " + str(my))
+                self.idx = 0
+                self.sky.bump(mx/10.0, my/10.0)
 
-def main(arg):
-    sky = skyx.SkyXConnection()
-    sky.find("ngc7332")
+
+#---------------------------------------------------------------------
+
+def main(args):
+
     camp = emccd()
+    guide = guider()
+
+    exp_time_p = args.exp
+    print(exp_time_p, args.filename)
     
-    exp_time_p = float(arg[1])
     camp.start(exp_time_p)
     cnt = 1
     tot = 0
@@ -128,7 +165,7 @@ def main(arg):
     init_ui()
 
     if (saving):
-        base_filename = arg[2] + '_' + str(int(time.time())) + '_'
+        base_filename = args.filename + '_' + str(int(time.time())) + '_'
         savep = saver(base_filename)
         
     while True:
@@ -142,7 +179,9 @@ def main(arg):
         
         if (saving):
             savep.save_data(frame)
-                
+        
+        guide.guide(frame)
+               
         if cnt == FRAME_PER_FILE:
             print("file # " + str(seq) + " total frame = " + str(tot))
             sum = np.zeros((512,512))
@@ -160,4 +199,9 @@ def main(arg):
 #---------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main(sys.argv)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--filename", type=str, default = 'tmp', help="generic file name")
+    parser.add_argument("-exp", type=float, default = 0.033, help="exposure in seconds")
+    args = parser.parse_args()
+    print(args)
+    main(args)
