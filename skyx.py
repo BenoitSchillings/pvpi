@@ -218,7 +218,7 @@ class sky6RASCOMTele(object):
                 var Out = "";
                 sky6RASCOMTele.DoCommand(3, """
             command = command + cmd + ")\n"
-          
+            print(command)
             output = self.conn._send(command).splitlines()
             print(output)
 
@@ -233,7 +233,7 @@ class sky6RASCOMTele(object):
                 var Out = "";
                 sky6RASCOMTele.DoCommand(3, """
             command = command + cmd1 + ")\n"
-         
+            print(command)
             output = self.conn._send(command).splitlines()
             print(output)
        
@@ -242,6 +242,7 @@ class sky6RASCOMTele(object):
         dx = min(dx, 9.9)
         dy = max(dy, -9.9)
         dy = min(dy, 9.9)
+        
         quote = '"'
         
         if (dy > 0):

@@ -12,7 +12,7 @@ import scipy
 import astropy
 from astropy.io import fits
 import argparse
-
+import threading
 
 import skyx
 
@@ -121,6 +121,7 @@ class guider:
             self.sky = skyx.sky6RASCOMTele()
             self.sky.Connect()
             print(self.sky.GetRaDec())
+            #self.sky.bump(0.5, 0.5)
             self.inited = False
             self.tracks_x = numpy.zeros((self.frame_per_guide))
             self.tracks_y = numpy.zeros((self.frame_per_guide))
@@ -156,8 +157,8 @@ class guider:
 
 def main(args):
 
-    cam_p = emccd(args.gain)
     guide_p = guider(args.guide)
+    cam_p = emccd(args.gain)
 
     exp_time_p = args.exp
     print(exp_time_p, args.filename)
@@ -204,6 +205,15 @@ def main(args):
     
 #---------------------------------------------------------------------
 
+bg_active = True
+
+def backgrounder(arg):
+    while(True):
+        print("bg" + str(bg_active), flush=True)
+        time.sleep(1)
+
+#---------------------------------------------------------------------
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--filename", type=str, default = 'tmp', help="generic file name")
@@ -211,5 +221,10 @@ if __name__ == "__main__":
     parser.add_argument("-gain", "--gain", type=int, default = 300, help="emccd gain (default 300)")
     parser.add_argument("-guide", "--guide", type=int, default = 0, help="frame per guide cycle (0 to disable)")
     args = parser.parse_args()
+    #t = threading.Thread(target=backgrounder, args=(0,))
+    #t.daemon = True
+    #t.start()
     print(args)
+    time.sleep(10)
     main(args)
+     
