@@ -29,7 +29,7 @@ def save_fits(nparray):
 #---------------------------------------------------------------------
 
 def scale2(image):
-    return(cv2.resize(image, (0,0), fx=1.0, fy=1.0))
+    return(cv2.resize(image, (0,0), fx=1.0, fy=1.0, interpolation=cv2.INTER_NEAREST))
 
 #---------------------------------------------------------------------
 
@@ -47,11 +47,11 @@ def init_ui():
     cv2.namedWindow('sum')
     cv2.createTrackbar("Min", "live",0,16000, lambda pos: set(0, pos))
     cv2.setTrackbarPos("Min", "live", sliders[0]) 
-    cv2.createTrackbar("Range", "live",1,16000, lambda pos: set(1, pos))
+    cv2.createTrackbar("Range", "live",11,16000, lambda pos: set(1, pos))
     cv2.setTrackbarPos("Range", "live", sliders[1]) 
 
     cv2.createTrackbar("Min", "sum",0,16000, lambda pos: set(2, pos))
-    cv2.createTrackbar("Range", "sum",1,16000, lambda pos: set(3, pos))
+    cv2.createTrackbar("Range", "sum",11,16000, lambda pos: set(3, pos))
     cv2.setTrackbarPos("Min", "sum", sliders[2]) 
     cv2.setTrackbarPos("Range", "sum", sliders[3]) 
 
@@ -123,34 +123,38 @@ class guider:
             print(self.sky.GetRaDec())
             #self.sky.bump(0.5, 0.5)
             self.inited = False
-            self.tracks_x = numpy.zeros((self.frame_per_guide))
-            self.tracks_y = numpy.zeros((self.frame_per_guide))
+            self.tracks_x = np.zeros((self.frame_per_guide))
+            self.tracks_y = np.zeros((self.frame_per_guide))
             self.idx = 0
+            self.initpos = [0,0]
         
         
     def guide(self, image):
         if (self.frame_per_guide == 0):
             return
         
-        self.curpos = cv2.minMaxLoc()[3]
+        self.curpos = cv2.minMaxLoc(cv2.GaussianBlur(image,(5,5),0))[3]
         
-        if (not self.inited):
-            self.inited = True
-            self.initpos = self.curpos
-        else:
-            delta = self.initpos - self.curpos
-            print(delta)
-            self.tracks_x[self.idx] = delta[0]
-            self.tracks_y[self.idx] = delta[1]
+        
+        self.tracks_x[self.idx] = self.curpos[0]
+        self.tracks_y[self.idx] = self.curpos[1]
             
-            self.idx = self.idx + 1
-            if (self.idx == self.frame_per_guide):
-                mx = np.median(self.track_x)
-                my = np.median(self.track_y)
-                    
-                print("error is " + str(mx) + " " + str(my))
-                self.idx = 0
-                self.sky.bump(mx/10.0, my/10.0)
+        self.idx = self.idx + 1
+        
+        if (self.idx == self.frame_per_guide):
+            self.idx = 0
+            mx = np.median(self.tracks_x)
+            my = np.median(self.tracks_y)
+            if (self.inited == False):  
+                self.inited = True
+                self.initpos[0] = mx
+                self.initpos[1] = my
+            else:
+                mx = mx - self.initpos[0]
+                my = my - self.initpos[1]
+                print("error is " + str(my) + " " + str(mx))
+               
+                self.sky.bump(-mx/80.0, -my/80.0)
 
 
 #---------------------------------------------------------------------

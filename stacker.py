@@ -28,7 +28,7 @@ def init_ui():
         cv2.setTrackbarPos("Range", "sum", sliders[3])
 
 def scale2(image):
-        return(cv2.resize(image, (0,0), fx=2, fy=2, interpolation=cv2.INTER_LINEAR))
+        return(cv2.resize(image, (0,0), fx=1, fy=1, interpolation=cv2.INTER_LINEAR))
 
 
 def shift(array, dx, dy):
@@ -56,7 +56,7 @@ def main(arg):
         model = np.load(input_file).astype(np.float32)
         model = scale2(model)
         
-        for frame_num in range(10):
+        for frame_num in range(1000):
             frame = np.load(input_file)
             frame = scale2(frame) 
             f1 = frame.astype(np.float32)
@@ -65,9 +65,9 @@ def main(arg):
 
             best_error = 1e20
             print(' ')
-            for dx in range(-25, 25, 1):
+            for dx in range(-13, 13, 1):
                 print('.', end = "", flush = True)
-                for dy in range(-25, 25, 1):
+                for dy in range(-13, 13, 1):
                     temp = shift(frame, dx, dy)
                     #sumt = model - shift(frame, dx, dy)
                     sumt = model - temp

@@ -207,13 +207,15 @@ class sky6RASCOMTele(object):
         dy = min(dy, 999)
         quote = '"'
         
+        cmd = ""
+        
         if (dy > 4):
             cmd = quote + ":Ms" + str(int(dy)) + "#" + quote
             
         if (dy < -4):
             cmd = quote + ":Mn" + str(int(-dy)) + "#" + quote
         
-        if (not(cmd is None)):
+        if (not(cmd == "")):
             command = """
                 var Out = "";
                 sky6RASCOMTele.DoCommand(3, """
@@ -222,13 +224,13 @@ class sky6RASCOMTele(object):
             output = self.conn._send(command).splitlines()
             print(output)
 
-                   
+        cmd1 = ""      
         if (dx > 4):
             cmd1 = quote + ":Me" + str(int(dx)) + "#" + quote
         if (dx < -4):
             cmd1 = quote + ":Mw" + str(int(-dx)) + "#" + quote
         
-        if (not(cmd1 is None)):
+        if (not(cmd1 == "")):
             command = """
                 var Out = "";
                 sky6RASCOMTele.DoCommand(3, """
