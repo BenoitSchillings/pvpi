@@ -27,19 +27,27 @@ def init_ui():
         cv2.setTrackbarPos("Min", "sum", sliders[2])
         cv2.setTrackbarPos("Range", "sum", sliders[3])
 
+def save_fits(fn, nparray):
+    hdr = fits.header.Header()
+    fits.writeto(fn, np.float32(nparray), hdr, overwrite=True)
+
+
+
 def scale2(image):
-        return(cv2.resize(image, (0,0), fx=2, fy=2, interpolation=cv2.INTER_LINEAR))
+        return(cv2.resize(image, (0,0), fx=2, fy=2, interpolation=cv2.INTER_NEAREST))
 
 
 def shift(array, dx, dy):
         result = np.roll(np.roll(array, dx, 0), dy, 1)
         return result
 
-def error(array):
-        error = np.mean(array**2)
+def error(array, loc):
+        error = np.mean(array[loc[1] - 70:loc[1] + 70, loc[0] - 70:loc[0] + 70]**2)
         return error
 
-
+def clip(array):
+    a1 = array.clip(200, 1000)
+    return a1
 
 def main(arg):
         cnt = 1
@@ -49,40 +57,64 @@ def main(arg):
         sum = scale2(sum)
         k = 0
 
-        #init_ui()
 
+        print(len(arg))
         input_file = open(arg[1], "rb")
 
         model = np.load(input_file).astype(np.float32)
+        image_data = fits.getdata("model.fits", ext=0)
         model = scale2(model)
-        
-        for frame_num in range(10):
+        #model = image_data
+        included = 0
+        loc = cv2.minMaxLoc(cv2.GaussianBlur(model[:, :],(7,7),0))[3]
+        for frame_num in range(999):
             frame = np.load(input_file)
             frame = scale2(frame) 
             f1 = frame.astype(np.float32)
 
             f1 = f1 - sliders[0]
-
+            max = cv2.minMaxLoc(cv2.GaussianBlur(f1[:, :],(5,5),0))[1]
+            print(frame_num, included, max)
+            if (max < 2210):
+                continue
+                
+                
             best_error = 1e20
-            print(' ')
-            for dx in range(-25, 25, 1):
-                print('.', end = "", flush = True)
-                for dy in range(-25, 25, 1):
+
+            included = included + 1
+            for dx in range(-25, 25, 3):
+                for dy in range(-25, 25, 3):
+                    temp = shift(frame, dx, dy)
+                    sumt = model - temp
+                    new_error = error(sumt, loc)
+                    if (new_error < best_error):
+                         best_dx = dx
+                         best_dy = dy
+                         best_error = new_error
+
+            bdx = best_dx
+            bdy = best_dy
+            best_error = 1e20
+
+            for dx in range(bdx-2, bdx+2, 1):
+                for dy in range(bdy-2, bdy+2, 1):
                     temp = shift(frame, dx, dy)
                     #sumt = model - shift(frame, dx, dy)
                     sumt = model - temp
-                    new_error = error(sumt)
+                    new_error = error(sumt, loc)
                     if (new_error < best_error):
                          best_dx = dx
                          best_dy = dy
                          best_error = new_error
 
 
-            sum = sum + shift(f1, best_dx, best_dy)
+            sum = sum + clip(shift(f1, best_dx, best_dy))
             print(best_dx, best_dy)
 
-        s = sum / 10.0
-        
+        s = (sum * 4.0) / included
+        print(cv2.minMaxLoc(s[:, :])[1])
+
+        save_fits('fn4.fits', s)
         init_ui()
         while(True):
             cv2.imshow('sum', ((1.0/sliders[3]) * (s - sliders[2])))
