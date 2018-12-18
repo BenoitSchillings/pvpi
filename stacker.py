@@ -95,7 +95,6 @@ def main(arg):
             bdx = best_dx
             bdy = best_dy
             best_error = 1e20
-
             for dx in range(bdx-2, bdx+2, 1):
                 for dy in range(bdy-2, bdy+2, 1):
                     temp = shift(frame, dx, dy)

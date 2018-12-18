@@ -11,13 +11,14 @@ import numpy as np
 import scipy
 import astropy
 from astropy.io import fits
-
+import argparse
+import threading
 
 import skyx
 
 #---------------------------------------------------------------------
 
-FRAME_PER_FILE = 100
+FRAME_PER_FILE = 1000
 
 #---------------------------------------------------------------------
 
@@ -28,7 +29,7 @@ def save_fits(nparray):
 #---------------------------------------------------------------------
 
 def scale2(image):
-    return(cv2.resize(image, (0,0), fx=1.0, fy=1.0))
+    return(cv2.resize(image, (0,0), fx=1.0, fy=1.0, interpolation=cv2.INTER_NEAREST))
 
 #---------------------------------------------------------------------
 
@@ -46,11 +47,11 @@ def init_ui():
     cv2.namedWindow('sum')
     cv2.createTrackbar("Min", "live",0,16000, lambda pos: set(0, pos))
     cv2.setTrackbarPos("Min", "live", sliders[0]) 
-    cv2.createTrackbar("Range", "live",1,16000, lambda pos: set(1, pos))
+    cv2.createTrackbar("Range", "live",11,16000, lambda pos: set(1, pos))
     cv2.setTrackbarPos("Range", "live", sliders[1]) 
 
     cv2.createTrackbar("Min", "sum",0,16000, lambda pos: set(2, pos))
-    cv2.createTrackbar("Range", "sum",1,16000, lambda pos: set(3, pos))
+    cv2.createTrackbar("Range", "sum",11,16000, lambda pos: set(3, pos))
     cv2.setTrackbarPos("Min", "sum", sliders[2]) 
     cv2.setTrackbarPos("Range", "sum", sliders[3]) 
 
@@ -58,7 +59,7 @@ def init_ui():
 #---------------------------------------------------------------------
 
 class emccd:
-    def __init__(self):
+    def __init__(self, gain):
         pvc.init_pvcam()
 
         self.vcam = next(Camera.detect_camera())
@@ -69,7 +70,8 @@ class emccd:
         print(self.vcam.temp_setpoint)
 
         pvc.set_param(self.vcam.handle, const.PARAM_READOUT_PORT, 0)
-        pvc.set_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, 400)
+        print("gain = ", gain)
+        pvc.set_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, gain)
         v = pvc.get_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, const.ATTR_CURRENT)
         print(self.vcam.temp)
         
@@ -112,27 +114,73 @@ class saver:
         
 #---------------------------------------------------------------------
 
+class guider:
+    def __init__(self, frame_per_guide):
+        self.frame_per_guide = frame_per_guide
+        if (frame_per_guide != 0):
+            self.sky = skyx.sky6RASCOMTele()
+            self.sky.Connect()
+            print(self.sky.GetRaDec())
+            #self.sky.bump(0.5, 0.5)
+            self.inited = False
+            self.tracks_x = np.zeros((self.frame_per_guide))
+            self.tracks_y = np.zeros((self.frame_per_guide))
+            self.idx = 0
+            self.initpos = [0,0]
+        
+        
+    def guide(self, image):
+        if (self.frame_per_guide == 0):
+            return
+        
+        self.curpos = cv2.minMaxLoc(cv2.GaussianBlur(image,(5,5),0))[3]
+        
+        
+        self.tracks_x[self.idx] = self.curpos[0]
+        self.tracks_y[self.idx] = self.curpos[1]
+            
+        self.idx = self.idx + 1
+        
+        if (self.idx == self.frame_per_guide):
+            self.idx = 0
+            mx = np.median(self.tracks_x)
+            my = np.median(self.tracks_y)
+            if (self.inited == False):  
+                self.inited = True
+                self.initpos[0] = mx
+                self.initpos[1] = my
+            else:
+                mx = mx - self.initpos[0]
+                my = my - self.initpos[1]
+                print("error is " + str(my) + " " + str(mx))
+               
+                self.sky.bump(-mx/80.0, -my/80.0)
 
-def main(arg):
-    sky = skyx.SkyXConnection()
-    sky.find("ngc7332")
-    camp = emccd()
+
+#---------------------------------------------------------------------
+
+def main(args):
+
+    guide_p = guider(args.guide)
+    cam_p = emccd(args.gain)
+
+    exp_time_p = args.exp
+    print(exp_time_p, args.filename)
     
-    exp_time_p = float(arg[1])
-    camp.start(exp_time_p)
+    cam_p.start(exp_time_p)
     cnt = 1
     tot = 0
-    saving = len(arg) > 2
+    saving = True
     sum = np.zeros((512,512))
 
     init_ui()
 
     if (saving):
-        base_filename = arg[2] + '_' + str(int(time.time())) + '_'
-        savep = saver(base_filename)
+        base_filename = args.filename + '_' + str(int(time.time())) + '_'
+        save_p = saver(base_filename)
         
     while True:
-        frame = camp.get_frame()
+        frame = cam_p.get_frame()
         f1 = frame.astype(float)
 
         sum = sum + f1
@@ -141,10 +189,12 @@ def main(arg):
         cv2.imshow('sum', scale2((1.0/sliders[3]) * (sum/cnt - sliders[2])))
         
         if (saving):
-            savep.save_data(frame)
-                
+            save_p.save_data(frame)
+        
+        guide_p.guide(frame)
+               
         if cnt == FRAME_PER_FILE:
-            print("file # " + str(seq) + " total frame = " + str(tot))
+            print("file # " + " total frame = " + str(tot))
             sum = np.zeros((512,512))
             cnt = 0
 
@@ -154,10 +204,31 @@ def main(arg):
         cnt += 1
         tot += 1
 
-    camp.close()
-    savep.close()
+    cam_p.close()
+    save_p.close()
     
 #---------------------------------------------------------------------
 
+bg_active = True
+
+def backgrounder(arg):
+    while(True):
+        print("bg" + str(bg_active), flush=True)
+        time.sleep(1)
+
+#---------------------------------------------------------------------
+
 if __name__ == "__main__":
-    main(sys.argv)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--filename", type=str, default = 'tmp', help="generic file name")
+    parser.add_argument("-exp", type=float, default = 0.033, help="exposure in seconds (default 0.033)")
+    parser.add_argument("-gain", "--gain", type=int, default = 300, help="emccd gain (default 300)")
+    parser.add_argument("-guide", "--guide", type=int, default = 0, help="frame per guide cycle (0 to disable)")
+    args = parser.parse_args()
+    #t = threading.Thread(target=backgrounder, args=(0,))
+    #t.daemon = True
+    #t.start()
+    print(args)
+    time.sleep(10)
+    main(args)
+     
