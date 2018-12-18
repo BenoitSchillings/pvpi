@@ -112,9 +112,10 @@ def clip(array):
 
     tmp1 = cp.copy(tmp)
 
-    #for level in range(10, -1, -1):
-         #i, j = cp.where(tmp < tresh[level])
-         #tmp1[i, j] = level
+    if (True):
+        for level in range(10, -1, -1):
+                i, j = cp.where(tmp < tresh[level])
+                tmp1[i, j] = level
     
     tmp1 = tmp1 * GAIN
     #print(tmp1)
@@ -187,6 +188,9 @@ def chunk(data):
             #plt.clf()
             
         print("xy_fwhm ", g.fwhm)
+
+        snr = data[80:130, 80:130]
+        print(data.mean(), " ", data.max()," ", snr.std())
         return z
 
 #--------------------------------------------------------------
