@@ -63,7 +63,7 @@ def main(arg):
         
         median = np.median(vsum, axis=0)
         hdr = fits.header.Header()
-        fits.writeto(fn + ".fits", np.float32(median), hdr, overwrite=True)
+        fits.writeto("dk300_m80_npc.fits", np.float32(median), hdr, overwrite=True)
 
  
  #--------------------------------------------------------------

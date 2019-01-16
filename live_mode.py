@@ -16,6 +16,13 @@ import threading
 
 import skyx
 
+import datetime
+
+def debug_time():
+    currentDT = datetime.datetime.now()
+    print (str(currentDT))
+
+
 #---------------------------------------------------------------------
 
 FRAME_PER_FILE = 1000
@@ -38,10 +45,12 @@ def scale3(image):
 
 sliders = [300, 1000, 300, 1000]
 
+clickpos = [256,256]
+
 #---------------------------------------------------------------------
 
 def set(idx, pos):
-    sliders[idx] = pos
+    sliders[idx] = pos + 1
 
 #---------------------------------------------------------------------
 
@@ -63,15 +72,18 @@ def init_ui():
 
 class emccd:
     def __init__(self, gain):
+        
+        print("init cam")
         pvc.init_pvcam()
 
+        
         self.vcam = next(Camera.detect_camera())
         self.vcam.open()
         self.vcam.gain=3
         print(self.vcam.temp)
         self.vcam.temp_setpoint = -8000
         print(self.vcam.temp_setpoint)
-
+        self.vcam.clear_mode="Pre-Sequence"
         pvc.set_param(self.vcam.handle, const.PARAM_READOUT_PORT, 0)
         print("gain = ", gain)
         pvc.set_param(self.vcam.handle, const.PARAM_GAIN_MULT_FACTOR, gain)
@@ -105,7 +117,8 @@ class saver:
             
         self.cnt = self.cnt + 1
         if (self.cnt == 1):
-            self.output_file = open(self.filename + str(self.idx), 'ab')
+            self.output_file = open(self.filename + str(self.idx) + '.bra', 'ab')
+            debug_time()
     
         np.save(self.output_file, data)
         if (self.cnt == FRAME_PER_FILE):
@@ -223,19 +236,25 @@ def main(args):
 
         sum = sum + f1
         
-        cv2.imshow('live', scale2((1.0/sliders[1]) *  (f1 - sliders[0])))
-        cv2.imshow('sum', scale2((1.0/sliders[3]) * (sum/cnt - sliders[2])))
+        if (cnt % 2 == 0):
+            cv2.imshow('live', scale2((1.0/sliders[1]) *  (f1 - sliders[0])))
+            cv2.imshow('sum', scale2((1.0/sliders[3]) * (sum/cnt - sliders[2])))
         if (cnt % 10 == 0):
             curpos = cv2.minMaxLoc(cv2.GaussianBlur(f1,(3,3),0))[3]
             if (curpos[0] > 30 and curpos[1] > 30 and curpos[0] < 480 and curpos[1] < 480):
                 cv2.imshow('focus', scale3((1.0/sliders[1]) *  (f1[curpos[1]-30:curpos[1]+30, curpos[0]-30:curpos[0]+30] - sliders[0])))
+
+
+        if (cnt % 10 == 0):
+            if (clickpos[0] > 30 and clickpos[1] > 30 and clickpos[0] < 480 and clickpos[1] < 480):
+                 cv2.imshow('click', scale3((1.0/sliders[3]) *  (sum[clickpos[1]-30:clickpos[1]+30, clickpos[0]-30:clickpos[0]+30]/cnt - sliders[2])))
 
         if (saving):
             save_p.save_data(frame)
         
         guide_p.guide(frame)
                
-        if cnt == 100:
+        if cnt == 10000:
             sum = np.zeros((512,512))
             cnt = 0
             
@@ -251,8 +270,8 @@ def main(args):
 
         cnt += 1
         tot += 1
-        if (tot % 5000 == 0):
-            guide_p.move()
+        #if (tot % 5000 == 0):
+            #guide_p.move()
 
     cam_p.close()
     save_p.close()
@@ -279,6 +298,6 @@ if __name__ == "__main__":
     #t.daemon = True
     #t.start()
     print(args)
-    time.sleep(10)
+    
     main(args)
      
