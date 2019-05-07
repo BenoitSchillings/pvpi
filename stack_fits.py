@@ -15,6 +15,7 @@ from astropy.modeling import models, fitting
 import matplotlib.pyplot as plt
 from skimage import color, data, restoration
 
+
 sliders = [30, 1000, 20]
 
 

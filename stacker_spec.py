@@ -247,7 +247,6 @@ def masker(data):
     #print(m2)
     return(m1+m2)
 
-
 #--------------------------------------------------------------
 
 def load_images(fn):
