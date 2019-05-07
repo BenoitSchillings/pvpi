@@ -47,6 +47,7 @@ def dk_sum(images):
         return sum/1.0
  
 #--------------------------------------------------------------
+# extract a single FITS from a bra file
 
 def main(arg):
 

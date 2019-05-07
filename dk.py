@@ -52,8 +52,10 @@ from glob import glob
 def main(arg):
         count = 0
         print(glob(arg[1]))
-        vsum = np.zeros( (len(glob(arg[1])), 512,512))
-        for fn in glob(arg[1])[0:]: 
+        fns = arg[1:]
+        vsum = np.zeros( (len(fns), 512,512))
+
+        for fn in  fns: 
                 print(fn)
                 images = load_images(fn)
                 sum = dk_sum(images)

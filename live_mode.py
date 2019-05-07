@@ -145,6 +145,7 @@ class guider:
             self.idx = 0
             mx = np.median(self.tracks_x)
             my = np.median(self.tracks_y)
+
             if (self.inited == False):  
                 self.inited = True
                 self.initpos[0] = mx
