@@ -187,6 +187,24 @@ class sky6RASCOMTele(object):
         time.sleep(1)
         print(self.GetRaDec())
 
+    def goto(self, ra, dec):
+        command = """
+                sky6RASCOMTele.SlewToRaDec(""" + str(ra) + "," + str(dec) + """, "cxx");
+                """
+        print(command)
+        output = self.conn._send(command).splitlines()
+        print(output)
+        time.sleep(0.4)
+    
+    def rate(self, d_ra, d_dec):
+        command = """
+                sky6RASCOMTele.SetTracking(1, 0, """ + str(d_ra) + "," + str(d_dec) + """);
+                """
+        print(command)
+        output = self.conn._send(command).splitlines()
+        print(output)
+        time.sleep(0.04)
+
    
     def stop(self):
         # Stop tracking

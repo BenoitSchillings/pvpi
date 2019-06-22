@@ -13,6 +13,7 @@ import astropy
 from astropy.io import fits
 import argparse
 import threading
+import random
 
 import skyx
 
@@ -59,11 +60,11 @@ def init_ui():
     cv2.namedWindow('sum')
     cv2.createTrackbar("Min", "live",0,16000, lambda pos: set(0, pos))
     cv2.setTrackbarPos("Min", "live", sliders[0]) 
-    cv2.createTrackbar("Range", "live",11,16000, lambda pos: set(1, pos))
+    cv2.createTrackbar("Range", "live",11,63000, lambda pos: set(1, pos))
     cv2.setTrackbarPos("Range", "live", sliders[1]) 
 
     cv2.createTrackbar("Min", "sum",0,16000, lambda pos: set(2, pos))
-    cv2.createTrackbar("Range", "sum",11,16000, lambda pos: set(3, pos))
+    cv2.createTrackbar("Range", "sum",11,63000, lambda pos: set(3, pos))
     cv2.setTrackbarPos("Min", "sum", sliders[2]) 
     cv2.setTrackbarPos("Range", "sum", sliders[3]) 
 
@@ -79,7 +80,7 @@ class emccd:
         
         self.vcam = next(Camera.detect_camera())
         self.vcam.open()
-        self.vcam.gain=3
+        self.vcam.gain=2
         print(self.vcam.temp)
         self.vcam.temp_setpoint = -8000
         print(self.vcam.temp_setpoint)
@@ -147,9 +148,16 @@ class guider:
             self.tracks_y = np.zeros((self.frame_per_guide))
             self.idx = 0
             self.initpos = [0,0]
-            sum = np.zeros((512,512))
+            self.sum = np.zeros((512,512))
+            self.delta_x = 0
+            self.delta_y = 0
         
         
+    def rand_pos(self):
+        self.delta_x = random.randint(-8, 6)
+        self.delta_y = random.randint(-6, 8)
+        print("randpos")
+            
     def guide(self, image):
         if (self.frame_per_guide == 0):
             return
@@ -171,36 +179,47 @@ class guider:
                 self.initpos[0] = mx
                 self.initpos[1] = my
             else:
-                mx = mx - self.initpos[0]
-                my = my - self.initpos[1]
+                mx = mx - self.initpos[0] + self.delta_x
+                my = my - self.initpos[1] + self.delta_y
+                
                 print("error is " + str(my) + " " + str(mx))
                
-                self.sky.bump(-mx/40.0, -my/40.0)
+                
+                self.sky.bump(my/40.0, -mx/40.0)
 
         
-    def guidesum(self, image):
+    def guide_sum(self, image):
         if (self.frame_per_guide == 0):
             return
         
         self.idx = self.idx + 1
-        sum = sum + frame
+        
+        self.sum = self.sum + image
         
         if (self.idx == self.frame_per_guide):
             self.idx = 0
-            self.curpos = cv2.minMaxLoc(cv2.GaussianBlur(image,(5,5),0))[3]
+            self.curpos = cv2.minMaxLoc(cv2.GaussianBlur(self.sum,(3,3),0))[3]
             mx = self.curpos[0]
             my = self.curpos[1]
-            sum = sum * 0
+            print(mx, my)
+            self.sum = self.sum * 0
+            
             if (self.inited == False):  
                 self.inited = True
                 self.initpos[0] = mx
                 self.initpos[1] = my
             else:
-                mx = mx - self.initpos[0]
-                my = my - self.initpos[1]
+                mx = mx - self.initpos[0]  + self.delta_x
+                my = my - self.initpos[1] + self.delta_y
                 print("error is " + str(my) + " " + str(mx))
-            
-                self.sky.bump(-mx/40.0, -my/40.0)
+                if (abs(my) > 20):
+                    my = 0
+                    mx = 0
+                if (abs(mx) > 20):
+                    mx = 0
+                    my = 0
+                    
+                self.sky.bump(my/40.0, -mx/40.0)
 
 
     def move(self):
@@ -238,21 +257,22 @@ def main(args):
         
         if (cnt % 2 == 0):
             cv2.imshow('live', scale2((1.0/sliders[1]) *  (f1 - sliders[0])))
-            cv2.imshow('sum', scale2((1.0/sliders[3]) * (sum/cnt - sliders[2])))
-        if (cnt % 10 == 0):
+            cv2.imshow('sum', scale2((1.0/sliders[3]) * (3.0*sum/cnt - sliders[2])))
+        if (cnt % 5 == 0):
             curpos = cv2.minMaxLoc(cv2.GaussianBlur(f1,(3,3),0))[3]
+            #print(curpos[2])
             if (curpos[0] > 30 and curpos[1] > 30 and curpos[0] < 480 and curpos[1] < 480):
                 cv2.imshow('focus', scale3((1.0/sliders[1]) *  (f1[curpos[1]-30:curpos[1]+30, curpos[0]-30:curpos[0]+30] - sliders[0])))
 
 
-        if (cnt % 10 == 0):
+        if (cnt % 5 == 0):
             if (clickpos[0] > 30 and clickpos[1] > 30 and clickpos[0] < 480 and clickpos[1] < 480):
                  cv2.imshow('click', scale3((1.0/sliders[3]) *  (sum[clickpos[1]-30:clickpos[1]+30, clickpos[0]-30:clickpos[0]+30]/cnt - sliders[2])))
 
         if (saving):
             save_p.save_data(frame)
         
-        guide_p.guide(frame)
+        guide_p.guide_sum(frame)
                
         if cnt == 10000:
             sum = np.zeros((512,512))
@@ -270,8 +290,8 @@ def main(args):
 
         cnt += 1
         tot += 1
-        #if (tot % 5000 == 0):
-            #guide_p.move()
+        if (tot % 5000 == 0):
+            guide_p.rand_pos()
 
     cam_p.close()
     save_p.close()
