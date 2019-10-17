@@ -8,7 +8,7 @@ from scipy import signal
 import astropy
 from astropy.io import fits
 import scipy.ndimage as snd
-import numpy as cp
+import cupy as cp
 import math
 import random
 from astropy.modeling import models, fitting

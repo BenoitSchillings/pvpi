@@ -1,55 +1,23 @@
-
-
 import usb.core
 import usb.util
 import re
-import time
 
 NEWFOCUS_COMMAND_REGEX = re.compile("([0-9]{0,1})([a-zA-Z?]{2,})([0-9+-]*)")
-MOTOR_TYPE = {
-        "0":"No motor connected",
-        "1":"Motor Unknown",
-        "2":"'Tiny' Motor",
-        "3":"'Standard' Motor"
-        }
+
+#----------------------------------------------------------------------------
 
 class Controller(object):
-    """Picomotor Controller
-
-    Example:
-
-        >>> controller = Controller(idProduct=0x4000, idVendor=0x104d)
-        >>> controller.command('VE?')
-        
-        >>> controller.start_console()
-    """
-
 
     def __init__(self, idProduct, idVendor):
-        """Initialize the Picomotor class with the spec's of the attached device
-
-        Call self._connect to set up communication with usb device and endpoints 
-        
-        Args:
-            idProduct (hex): Product ID of picomotor controller
-            idVendor (hex): Vendor ID of picomotor controller
-        """
         self.idProduct = idProduct
         self.idVendor = idVendor
         self._connect()
+        
+        
+        
+#----------------------------------------------------------------------------
 
     def _connect(self):
-        """Connect class to USB device 
-
-        Find device from Vendor ID and Product ID
-        Setup taken from [1]
-
-        Raises:
-            ValueError: if the device cannot be found by the Vendor ID and Product
-                ID
-            Assert False: if the input and outgoing endpoints can't be established
-        """
-        # find the device
         self.dev = usb.core.find(
                         idProduct=self.idProduct,
                         idVendor=self.idVendor
@@ -58,17 +26,11 @@ class Controller(object):
         if self.dev is None:
             raise ValueError('Device not found')
 
-        # set the active configuration. With no arguments, the first
-        # configuration will be the active one
         self.dev.set_configuration()
-
-        # get an endpoint instance
         cfg = self.dev.get_active_configuration()
         intf = cfg[(0,0)]
-
         self.ep_out = usb.util.find_descriptor(
             intf,
-            # match the first OUT endpoint
             custom_match = \
             lambda e: \
                 usb.util.endpoint_direction(e.bEndpointAddress) == \
@@ -84,6 +46,10 @@ class Controller(object):
 
         assert (self.ep_out and self.ep_in) is not None
         
+        # Confirm connection to user
+        resp = self.command('VE?')
+
+#----------------------------------------------------------------------------
 
 
     def send_command(self, usb_command, get_reply=False):
@@ -93,7 +59,6 @@ class Controller(object):
             usb_command (str): Correctly formated command for USB driver
             get_reply (bool): query the IN endpoint after sending command, to 
                 get controller's reply
-
         Returns:
             Character representation of returned hex values if a reply is 
                 requested
@@ -102,10 +67,10 @@ class Controller(object):
         if get_reply:
             return self.ep_in.read(100)
             
+#----------------------------------------------------------------------------
 
     def parse_command(self, newfocus_command):
         """Convert a NewFocus style command into a USB command
-
         Args:
             newfocus_command (str): of the form xxAAnn
                 > The general format of a command is a two character mnemonic (AA). 
@@ -145,13 +110,13 @@ class Controller(object):
                                                             newfocus_command
                                                             ))
 
+#----------------------------------------------------------------------------
+
 
     def parse_reply(self, reply):
         """Take controller's reply and make human readable
-
         Args:
             reply (list): list of bytes returns from controller in hex format
-
         Returns:
             reply (str): Cleaned string of controller reply
         """
@@ -160,13 +125,13 @@ class Controller(object):
         reply = ''.join([chr(x) for x in reply])
         return reply.rstrip()
 
+#----------------------------------------------------------------------------
+
 
     def command(self, newfocus_command):
         """Send NewFocus formated command
-
         Args:
             newfocus_command (str): Legal command listed in usermanual [2 - 6.2] 
-
         Returns:
             reply (str): Human readable reply from controller
         """
@@ -186,36 +151,43 @@ class Controller(object):
             return self.parse_reply(reply)
 
 
+#----------------------------------------------------------------------------
+
+    def start_console(self):
+        """Continuously ask user for a command
+        """
+        print('''
+        Picomotor Command Line
+        ---------------------------
+        Enter a valid NewFocus command, or 'quit' to exit the program.
+        Common Commands:
+            xMV[+-]: .....Indefinitely move motor 'x' in + or - direction
+                 ST: .....Stop all motor movement
+              xPRnn: .....Move motor 'x' 'nn' steps
+        \n
+        ''')
+
+        while True:
+            command = raw_input("Input > ")
+            if command.lower() in ['q', 'quit', 'exit']: 
+                break
+            else:
+                rep = self.command(command)
+                if rep:
+                    print("Output: {}".format(rep))
+
+#----------------------------------------------------------------------------
 
 
-def init_pico():
-    idProduct =  '0x4000'
-    idVendor =  '0x104d'
+if __name__ == '__main__':
+    idProduct = '0x4000'
+    idVendor = '0x104d'
 
     idProduct = int(idProduct, 16)
     idVendor = int(idVendor, 16)
-    global controller 
- # Initialize controller and start console
+
+    # Initialize controller and start console
     controller = Controller(idProduct=idProduct, idVendor=idVendor)
-
- 
-
-def move_pico(speed, count):
-    controller.command("1va" + str(speed))
-    controller.command("1pr" + str(count))
-   
-def move3(speed, d1, d2, d3):
-    controller.command("1va" + str(speed))
-    controller.command("2va" + str(speed))
-    controller.command("3va" + str(speed))
-    controller.command("1pr" + str(d1))
-    time.sleep(0.3) 
-    controller.command("2pr" + str(d2))
-    time.sleep(0.3)
-    controller.command("3pr" + str(d3))
-
-    
-def pos():
-    result = controller.command("1tp?")
-    return result
-    
+    controller.command('VE?')
+    controller.start_console()
+    controller.command('AB')

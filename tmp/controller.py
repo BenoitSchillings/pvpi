@@ -3,7 +3,6 @@
 import usb.core
 import usb.util
 import re
-import time
 
 NEWFOCUS_COMMAND_REGEX = re.compile("([0-9]{0,1})([a-zA-Z?]{2,})([0-9+-]*)")
 MOTOR_TYPE = {
@@ -203,17 +202,7 @@ def init_pico():
 def move_pico(speed, count):
     controller.command("1va" + str(speed))
     controller.command("1pr" + str(count))
-   
-def move3(speed, d1, d2, d3):
-    controller.command("1va" + str(speed))
-    controller.command("2va" + str(speed))
-    controller.command("3va" + str(speed))
-    controller.command("1pr" + str(d1))
-    time.sleep(0.3) 
-    controller.command("2pr" + str(d2))
-    time.sleep(0.3)
-    controller.command("3pr" + str(d3))
-
+    
     
 def pos():
     result = controller.command("1tp?")

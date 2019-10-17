@@ -17,7 +17,7 @@ def load_images(fn):
 
         images = []
         
-        for frame_num in range(N):
+        for frame_num in range(1):
                 tmp = np.load(input_file)
 
                 images.append(np.array(tmp))
@@ -30,7 +30,7 @@ def load_images(fn):
 def calc_sum(images):
     sum = np.zeros((512,512))
     
-    for frame_num in range(0,N):
+    for frame_num in range(0,1):
         f1 = images[frame_num]
         sum = sum + f1
 
@@ -44,26 +44,19 @@ def dk_sum(images):
         sum = calc_sum(images)
 
 
-        return sum/1000.0
+        return sum/1.0
  
 #--------------------------------------------------------------
 
-from glob import glob
 def main(arg):
-        count = 0
-        print(glob(arg[1]))
-        vsum = np.zeros( (len(glob(arg[1])), 512,512))
-        for fn in glob(arg[1])[0:]: 
-                print(fn)
-                images = load_images(fn)
-                sum = dk_sum(images)
-                del images
-                count = count + 1.0
-                vsum[int(count) - 1] = sum
+
+    fn = arg[1]
+    print(fn)
+    images = load_images(fn)
+    sum = dk_sum(images)
         
-        median = np.average(vsum, axis=0)
-        hdr = fits.header.Header()
-        fits.writeto("dk.fits", np.float32(median), hdr, overwrite=True)
+    hdr = fits.header.Header()
+    fits.writeto(fn + "_single_.fits", np.float32(sum), hdr, overwrite=True)
 
  
  #--------------------------------------------------------------

@@ -61,9 +61,9 @@ def main(arg):
                 count = count + 1.0
                 vsum[int(count) - 1] = sum
         
-        median = np.average(vsum, axis=0)
+        median = np.median(vsum, axis=0)
         hdr = fits.header.Header()
-        fits.writeto("dk.fits", np.float32(median), hdr, overwrite=True)
+        fits.writeto("dk300_m80_npc.fits", np.float32(median), hdr, overwrite=True)
 
  
  #--------------------------------------------------------------

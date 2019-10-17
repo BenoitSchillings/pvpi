@@ -63,7 +63,7 @@ def main(arg):
         
         median = np.average(vsum, axis=0)
         hdr = fits.header.Header()
-        fits.writeto("dk.fits", np.float32(median), hdr, overwrite=True)
+        fits.writeto("flat102.fits", np.float32(median), hdr, overwrite=True)
 
  
  #--------------------------------------------------------------

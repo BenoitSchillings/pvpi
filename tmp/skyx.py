@@ -203,7 +203,7 @@ class sky6RASCOMTele(object):
         print(command)
         output = self.conn._send(command).splitlines()
         print(output)
-        time.sleep(0.1)
+        time.sleep(0.04)
 
    
     def stop(self):

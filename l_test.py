@@ -80,12 +80,12 @@ class emccd:
         
         self.vcam = next(Camera.detect_camera())
         self.vcam.open()
-        self.vcam.gain=3
+        self.vcam.gain=2
         print(self.vcam.temp)
-        self.vcam.temp_setpoint = -7000
+        self.vcam.temp_setpoint = -8000
         print(self.vcam.temp_setpoint)
         self.vcam.clear_mode="Pre-Sequence"
-        #self.vcam.clear_mode="Pre-Exposure"
+        self.vcam.clear_mode="Pre-Exposure"
 
         pvc.set_param(self.vcam.handle, const.PARAM_READOUT_PORT, 0)
         #v = pvc.get_param(self.vcam.handle, const.PARAM_FAN_SPEED_SETPOINT, const.ATTR_CURRENT) 
@@ -205,7 +205,7 @@ class guider:
             self.curpos = cv2.minMaxLoc(cv2.GaussianBlur(self.sum,(3,3),0))[3]
             mx = self.curpos[0]
             my = self.curpos[1]
-            #print(mx, my)
+            print(mx, my)
             self.sum = self.sum * 0
             
             if (self.inited == False):  
@@ -215,7 +215,7 @@ class guider:
             else:
                 mx = mx - self.initpos[0]  + self.delta_x
                 my = my - self.initpos[1] + self.delta_y
-                #print("error is " + str(my) + " " + str(mx))
+                print("error is " + str(my) + " " + str(mx))
                 if (abs(my) > 20):
                     my = 0
                     mx = 0
@@ -254,33 +254,20 @@ def main(args):
     if (saving):
         base_filename = args.filename + '_' + str(int(time.time())) + '_'
         save_p = saver(base_filename)
-    
-    history = np.zeros(128)
-    history_idx = 0
-    
+        
     while True:
         frame = cam_p.get_frame()
         f1 = frame.astype(float)
 
         sum = sum + f1
         vmax = np.max(f1)
-        
-        history[history_idx] = vmax
-        history_idx = history_idx + 1
-        history_idx = history_idx % 128 
-        
-        if (cnt % 8 == 0):
-            p90 = np.percentile(history, 90)
-            print(p90) 
+
         if (cnt % 2 == 0):
-            buf = scale2((1.0/sliders[1]) *  (f1 - sliders[0]))
-            cv2.line(buf,(246,256),(266,256),(255,255,255),1)
-            cv2.line(buf,(256,246),(256,266),(255,255,255),1)
-            cv2.imshow('live', buf)
+            cv2.imshow('live', scale2((1.0/sliders[1]) *  (f1 - sliders[0])))
             cv2.imshow('sum', scale2((1.0/sliders[3]) * (3.0*sum/cnt - sliders[2])))
         if (cnt % 5 == 0):
             curpos = cv2.minMaxLoc(cv2.GaussianBlur(f1,(3,3),0))[3]
-            #print(np.max(f1))
+            print(np.max(f1))
             if (curpos[0] > 30 and curpos[1] > 30 and curpos[0] < 480 and curpos[1] < 480):
                 cv2.imshow('focus', scale3((1.0/sliders[1]) *  (f1[curpos[1]-30:curpos[1]+30, curpos[0]-30:curpos[0]+30] - sliders[0])))
 
@@ -289,12 +276,12 @@ def main(args):
             if (clickpos[0] > 30 and clickpos[1] > 30 and clickpos[0] < 480 and clickpos[1] < 480):
                  cv2.imshow('click', scale3((1.0/sliders[3]) *  (sum[clickpos[1]-30:clickpos[1]+30, clickpos[0]-30:clickpos[0]+30]/cnt - sliders[2])))
 
-        if (saving and (vmax > 200)):
+        if (saving and (vmax > 850)):
             save_p.save_data(frame)
         
         guide_p.guide_sum(frame)
                
-        if cnt == 300:
+        if cnt == 10000:
             sum = np.zeros((512,512))
             cnt = 0
             

@@ -80,12 +80,12 @@ class emccd:
         
         self.vcam = next(Camera.detect_camera())
         self.vcam.open()
-        self.vcam.gain=3
+        self.vcam.gain=1
         print(self.vcam.temp)
         self.vcam.temp_setpoint = -7000
         print(self.vcam.temp_setpoint)
-        self.vcam.clear_mode="Pre-Sequence"
-        #self.vcam.clear_mode="Pre-Exposure"
+        #self.vcam.clear_mode="Pre-Sequence"
+        self.vcam.clear_mode="Pre-Exposure"
 
         pvc.set_param(self.vcam.handle, const.PARAM_READOUT_PORT, 0)
         #v = pvc.get_param(self.vcam.handle, const.PARAM_FAN_SPEED_SETPOINT, const.ATTR_CURRENT) 
@@ -294,7 +294,7 @@ def main(args):
         
         guide_p.guide_sum(frame)
                
-        if cnt == 300:
+        if cnt == 100:
             sum = np.zeros((512,512))
             cnt = 0
             
