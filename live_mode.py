@@ -215,7 +215,8 @@ class guider:
             else:
                 mx = mx - self.initpos[0]  + self.delta_x
                 my = my - self.initpos[1] + self.delta_y
-                #print("error is " + str(my) + " " + str(mx))
+                print("error is " + str(mx) + " " + str(my))
+               
                 if (abs(my) > 20):
                     my = 0
                     mx = 0
@@ -223,7 +224,7 @@ class guider:
                     mx = 0
                     my = 0
                     
-                self.sky.bump(my/40.0, -mx/40.0)
+                self.sky.bump(-mx/40.0, my/40.0)
 
 
     def move(self):
